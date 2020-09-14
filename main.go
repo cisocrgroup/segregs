@@ -17,10 +17,6 @@ import (
 	_ "github.com/hhrutter/tiff"
 )
 
-var args = struct {
-	padding int
-}{}
-
 func usage(prog string) func() {
 	return func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [-padding=n] XML IMG OUT-BASE\nOptions:\n", prog)
@@ -30,13 +26,13 @@ func usage(prog string) func() {
 }
 
 func main() {
-	flag.IntVar(&args.padding, "padding", 0, "set padding for region images")
+	padding := flag.Int("padding", 0, "set padding for region images")
 	flag.Usage = usage(os.Args[0])
 	flag.Parse()
 	if len(flag.Args()) != 3 {
 		usage(os.Args[0])()
 	}
-	run(flag.Args()[0], flag.Args()[1], flag.Args()[2], args.padding)
+	run(flag.Args()[0], flag.Args()[1], flag.Args()[2], *padding)
 }
 
 func run(xmlName, imgName, outBase string, padding int) {

@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/antchfx/xmlquery"
 	"github.com/cisocrgroup/segregs/poly"
@@ -42,7 +43,6 @@ func run(xmlName, imgName, outBase string, padding int) {
 	defer in.Close()
 	img, _, err := image.Decode(in)
 	chk(err)
-	// img := readImg(in)
 	for _, r := range regions(xmlName) {
 		r.write(img, outBase, padding)
 	}
@@ -59,7 +59,7 @@ func regions(name string) []region {
 	for _, r := range rs {
 		// read region polygon
 		ps := xmlquery.Find(r, "//*[local-name()='Point']")
-		polygon, err := poly.NewFromPoints(ps)
+		polygon, err := newPolygonFromPoints(ps)
 		chk(err)
 		// read id, type, language
 		id, err := attr(r, "id")
@@ -78,6 +78,31 @@ func regions(name string) []region {
 		})
 	}
 	return ret
+}
+
+func newPolygonFromPoints(points []*xmlquery.Node) (poly.Polygon, error) {
+	attrAsInt := func(node *xmlquery.Node, key string) (int, bool) {
+		for _, attr := range node.Attr {
+			if attr.Name.Local != key {
+				continue
+			}
+			val, err := strconv.Atoi(attr.Value)
+			if err != nil {
+				return 0, false
+			}
+			return val, true
+		}
+		return 0, false
+	}
+	var ret poly.Polygon
+	for _, point := range points {
+		x, xok := attrAsInt(point, "x")
+		y, yok := attrAsInt(point, "y")
+		if xok && yok {
+			ret = append(ret, image.Point{X: x, Y: y})
+		}
+	}
+	return ret, nil
 }
 
 func attr(node *xmlquery.Node, key string) (string, error) {

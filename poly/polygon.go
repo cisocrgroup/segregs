@@ -5,38 +5,10 @@ import (
 	"image"
 	"strconv"
 	"strings"
-
-	"github.com/antchfx/xmlquery"
 )
 
 // Polygon defines a list of closed points that define a polygon.
 type Polygon []image.Point
-
-// NewFromPoints from a node list of `<Point x="1" y="2"/>` entities.
-func NewFromPoints(points []*xmlquery.Node) (Polygon, error) {
-	attrAsInt := func(node *xmlquery.Node, key string) (int, bool) {
-		for _, attr := range node.Attr {
-			if attr.Name.Local != key {
-				continue
-			}
-			val, err := strconv.Atoi(attr.Value)
-			if err != nil {
-				return 0, false
-			}
-			return val, true
-		}
-		return 0, false
-	}
-	var ret Polygon
-	for _, point := range points {
-		x, xok := attrAsInt(point, "x")
-		y, yok := attrAsInt(point, "y")
-		if xok && yok {
-			ret = append(ret, image.Point{X: x, Y: y})
-		}
-	}
-	return ret, nil
-}
 
 // New creates a new polygon from a whitespace separated list of comma
 // separated coordinates e.g. `1,2 3,4 5,6`.  A polygon contains at
@@ -96,13 +68,11 @@ func (p Polygon) BoundingRectangle() image.Rectangle {
 // Implementation: https://stackoverflow.com/questions/217578/how-can-i-determine-whether-a-2d-point-is-within-a-polygon
 func (p Polygon) Inside(point image.Point) bool {
 	if len(p) == 0 {
-		// log.Printf("CASE 1: false")
 		return false
 	}
 	rect := p.BoundingRectangle()
 	min, max := rect.Min, rect.Max
 	if point.X < min.X || point.X > max.X || point.Y < min.Y || point.Y > max.Y {
-		// log.Printf("CASE 2: false")
 		return false
 	}
 	inside := false

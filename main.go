@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/antchfx/xmlquery"
 	"github.com/cisocrgroup/segregs/poly"
@@ -43,9 +44,15 @@ func run(xmlName, imgName, outBase string, padding int) {
 	defer in.Close()
 	img, _, err := image.Decode(in)
 	chk(err)
+	var wg sync.WaitGroup
 	for _, r := range regions(xmlName) {
-		r.write(img, outBase, padding)
+		wg.Add(1)
+		go func(r region) {
+			defer wg.Done()
+			r.write(img, outBase, padding)
+		}(r)
 	}
+	wg.Wait()
 }
 
 func regions(name string) []region {

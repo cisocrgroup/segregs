@@ -134,7 +134,7 @@ type region struct {
 }
 
 func (r region) write(img image.Image, outBase string, padding int) {
-	// copy sub image
+	// Copy the subregion from the base image.
 	rect := r.Polygon.BoundingRectangle()
 	newRect := addPadding(rect, img.Bounds().Max, padding)
 	newImg := image.NewRGBA(newRect)
@@ -151,13 +151,12 @@ func (r region) write(img image.Image, outBase string, padding int) {
 		}
 	}
 
-	// write region png and json files
+	// Write region png and json files.
 	r.Dir = fmt.Sprintf("%s_%s", outBase, r.ID)
 	r.Image = r.Dir + ".png"
 	pout, err := os.Create(r.Image)
 	chk(err)
 	defer func() { chk(pout.Close()) }()
-	// chk(png.Encode(pout, subImg))
 	chk(png.Encode(pout, newImg))
 	jout, err := os.Create(r.Dir + ".json")
 	chk(err)

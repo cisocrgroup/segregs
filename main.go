@@ -45,8 +45,9 @@ func run(xmlName, imgName, outBase string, padding int) {
 	img, _, err := image.Decode(in)
 	chk(err)
 	var wg sync.WaitGroup
-	for _, r := range regions(xmlName) {
-		wg.Add(1)
+	rs := regions(xmlName)
+	wg.Add(len(rs))
+	for _, r := range rs {
 		go func(r region) {
 			defer wg.Done()
 			r.write(img, outBase, padding)

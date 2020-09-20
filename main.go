@@ -38,7 +38,7 @@ func main() {
 }
 
 func run(xmlName, imgName, outBase string, padding int) {
-	// read image
+	// Read the iamge once.
 	in, err := os.Open(imgName)
 	chk(err)
 	defer in.Close()
@@ -65,18 +65,18 @@ func regions(name string) []region {
 	rs := xmlquery.Find(xml, "//*[local-name()='TextRegion']")
 	var ret []region
 	for _, r := range rs {
-		// read region polygon
+		// Read the region's polygon.
 		ps := xmlquery.Find(r, "//*[local-name()='Point']")
 		polygon, err := newPolygonFromPoints(ps)
 		chk(err)
-		// read id, type, language
+		// Read id, type and language attributes.
 		id, err := attr(r, "id")
 		chk(err)
 		typ, _ := attr(r, "type")
 		lang, _ := attr(r, "primaryLanguage")
-		// read unicode
+		// Read the unicode text for the region.
 		textnode := xmlquery.FindOne(r, "//*[local-name()='Unicode']")
-		// append new region
+		// Append the region to the list of regions.
 		ret = append(ret, region{
 			Polygon:         polygon,
 			ID:              id,

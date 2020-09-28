@@ -65,25 +65,19 @@ func regions(name string) []region {
 	rs := xmlquery.Find(xml, "//*[local-name()='TextRegion']")
 	var ret []region
 	for _, r := range rs {
-		// Read the region's polygon.
+		// Read the region's polygon and inner text.
 		ps := xmlquery.Find(r, "//*[local-name()='Point']")
 		polygon, err := newPolygonFromPoints(ps)
 		chk(err)
-		// Read id, type and language attributes.
-		id, err := attr(r, "id")
-		chk(err)
-		typ, _ := attr(r, "type")
-		lang, _ := attr(r, "primaryLanguage")
-		// Read the unicode text for the region.
 		textnode := xmlquery.FindOne(r, "//*[local-name()='Unicode']")
-		// Append the region to the list of regions.
-		ret = append(ret, region{
-			Polygon:         polygon,
-			ID:              id,
-			Type:            typ,
-			PrimaryLanguage: lang,
-			Text:            textnode.InnerText(),
-		})
+		reg := region{
+			"polygon": polygon,
+			"gt":      textnode.InnerText(),
+		}
+		for _, attr := range r.Attr {
+			reg[attr.Name.Local] = attr.Value
+		}
+		ret = append(ret, reg)
 	}
 	return ret
 }
@@ -113,29 +107,17 @@ func newPolygonFromPoints(points []*xmlquery.Node) (poly.Polygon, error) {
 	return ret, nil
 }
 
-func attr(node *xmlquery.Node, key string) (string, error) {
-	for _, attr := range node.Attr {
-		if attr.Name.Local == key {
-			return attr.Value, nil
-		}
-	}
-	return "", fmt.Errorf("node %s: no attribute: %s", node.Data, key)
-}
-
 func chk(err error) {
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
 }
 
-type region struct {
-	Polygon                                     poly.Polygon
-	ID, Type, PrimaryLanguage, Text, Image, Dir string
-}
+type region map[string]interface{}
 
 func (r region) write(img image.Image, outBase string, padding int) {
 	// Copy the subregion from the base image.
-	rect := r.Polygon.BoundingRectangle()
+	rect := r.polygon().BoundingRectangle()
 	newRect := addPadding(rect, img.Bounds().Max, padding)
 	newImg := image.NewRGBA(newRect)
 	draw.Draw(newImg, newImg.Bounds(), img, newRect.Min, draw.Src)
@@ -145,23 +127,27 @@ func (r region) write(img image.Image, outBase string, padding int) {
 	// need to adjust for the new x- and y-coordinates.
 	for x := newImg.Bounds().Min.X; x < newImg.Bounds().Max.X; x++ {
 		for y := newImg.Bounds().Min.Y; y < newImg.Bounds().Max.Y; y++ {
-			if !r.Polygon.Inside(image.Pt(x, y)) {
+			if !r.polygon().Inside(image.Pt(x, y)) {
 				newImg.Set(x, y, color.White)
 			}
 		}
 	}
 
 	// Write region png and json files.
-	r.Dir = fmt.Sprintf("%s_%s", outBase, r.ID)
-	r.Image = r.Dir + ".png"
-	pout, err := os.Create(r.Image)
+	r["dir"] = fmt.Sprintf("%s_%s", outBase, r["id"].(string))
+	r["image"] = r["dir"].(string) + ".png"
+	pout, err := os.Create(r["image"].(string))
 	chk(err)
 	defer func() { chk(pout.Close()) }()
 	chk(png.Encode(pout, newImg))
-	jout, err := os.Create(r.Dir + ".json")
+	jout, err := os.Create(r["dir"].(string) + ".json")
 	chk(err)
 	defer func() { chk(jout.Close()) }()
 	chk(json.NewEncoder(jout).Encode(r))
+}
+
+func (r region) polygon() poly.Polygon {
+	return r["polygon"].(poly.Polygon)
 }
 
 func addPadding(rect image.Rectangle, max image.Point, padding int) image.Rectangle {

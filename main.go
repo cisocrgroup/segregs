@@ -71,8 +71,8 @@ func regions(name string) []region {
 		chk(err)
 		textnode := xmlquery.FindOne(r, "//*[local-name()='Unicode']")
 		reg := region{
-			"polygon": polygon,
-			"gt":      textnode.InnerText(),
+			"Coordinates": polygon,
+			"Text":        textnode.InnerText(),
 		}
 		for _, attr := range r.Attr {
 			reg[attr.Name.Local] = attr.Value
@@ -117,7 +117,7 @@ type region map[string]interface{}
 
 func (r region) write(img image.Image, outBase string, padding int) {
 	// Copy the subregion from the base image.
-	rect := r.polygon().BoundingRectangle()
+	rect := r["Coordinates"].(poly.Polygon).BoundingRectangle()
 	newRect := addPadding(rect, img.Bounds().Max, padding)
 	newImg := image.NewRGBA(newRect)
 	draw.Draw(newImg, newImg.Bounds(), img, newRect.Min, draw.Src)
@@ -127,27 +127,23 @@ func (r region) write(img image.Image, outBase string, padding int) {
 	// need to adjust for the new x- and y-coordinates.
 	for x := newImg.Bounds().Min.X; x < newImg.Bounds().Max.X; x++ {
 		for y := newImg.Bounds().Min.Y; y < newImg.Bounds().Max.Y; y++ {
-			if !r.polygon().Inside(image.Pt(x, y)) {
+			if !r["Coordintates"].(poly.Polygon).Inside(image.Pt(x, y)) {
 				newImg.Set(x, y, color.White)
 			}
 		}
 	}
 
 	// Write region png and json files.
-	r["dir"] = fmt.Sprintf("%s_%s", outBase, r["id"].(string))
-	r["image"] = r["dir"].(string) + ".png"
-	pout, err := os.Create(r["image"].(string))
+	r["Dir"] = fmt.Sprintf("%s_%s", outBase, r["id"].(string))
+	r["Image"] = r["Dir"].(string) + ".png"
+	pout, err := os.Create(r["Image"].(string))
 	chk(err)
 	defer func() { chk(pout.Close()) }()
 	chk(png.Encode(pout, newImg))
-	jout, err := os.Create(r["dir"].(string) + ".json")
+	jout, err := os.Create(r["Dir"].(string) + ".json")
 	chk(err)
 	defer func() { chk(jout.Close()) }()
 	chk(json.NewEncoder(jout).Encode(r))
-}
-
-func (r region) polygon() poly.Polygon {
-	return r["polygon"].(poly.Polygon)
 }
 
 func addPadding(rect image.Rectangle, max image.Point, padding int) image.Rectangle {

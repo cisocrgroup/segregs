@@ -9,6 +9,7 @@ import (
 	"image/draw"
 	_ "image/jpeg"
 	"image/png"
+	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -117,7 +118,8 @@ type region map[string]interface{}
 
 func (r region) write(img image.Image, outBase string, padding int) {
 	// Copy the subregion from the base image.
-	rect := r["Coordinates"].(poly.Polygon).BoundingRectangle()
+	coords := r["Coordinates"].(poly.Polygon)
+	rect := coords.BoundingRectangle()
 	newRect := addPadding(rect, img.Bounds().Max, padding)
 	newImg := image.NewRGBA(newRect)
 	draw.Draw(newImg, newImg.Bounds(), img, newRect.Min, draw.Src)
@@ -127,13 +129,13 @@ func (r region) write(img image.Image, outBase string, padding int) {
 	// need to adjust for the new x- and y-coordinates.
 	for x := newImg.Bounds().Min.X; x < newImg.Bounds().Max.X; x++ {
 		for y := newImg.Bounds().Min.Y; y < newImg.Bounds().Max.Y; y++ {
-			if !r["Coordintates"].(poly.Polygon).Inside(image.Pt(x, y)) {
+			if !coords.Inside(image.Pt(x, y)) {
 				newImg.Set(x, y, color.White)
 			}
 		}
 	}
 
-	// Write region png and json files.
+	// Write region png, json and gt.txt files.
 	r["Dir"] = fmt.Sprintf("%s_%s", outBase, r["id"].(string))
 	r["Image"] = r["Dir"].(string) + ".png"
 	pout, err := os.Create(r["Image"].(string))
@@ -144,6 +146,8 @@ func (r region) write(img image.Image, outBase string, padding int) {
 	chk(err)
 	defer func() { chk(jout.Close()) }()
 	chk(json.NewEncoder(jout).Encode(r))
+	gtout := r["Dir"].(string) + ".gt.txt"
+	chk(ioutil.WriteFile(gtout, []byte(r["Text"].(string)+"\n"), 0666))
 }
 
 func addPadding(rect image.Rectangle, max image.Point, padding int) image.Rectangle {

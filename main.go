@@ -71,6 +71,9 @@ func regions(name string) []region {
 		polygon, err := newPolygonFromPoints(ps)
 		chk(err)
 		textnode := xmlquery.FindOne(r, "//*[local-name()='Unicode']")
+		if textnode == nil { // Skip regions with missing Unicode node.
+			continue
+		}
 		reg := region{
 			"Coordinates": polygon,
 			"Text":        textnode.InnerText(),

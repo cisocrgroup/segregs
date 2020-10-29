@@ -32,15 +32,21 @@ func usage(prog string) func() {
 func main() {
 	padding := flag.Int("padding", 0, "set padding for region images")
 	workers := flag.Int("workers", runtime.NumCPU(), "set number of worker threads")
+	lines := flag.Bool("lines", false, "segment line regions")
 	flag.Usage = usage(os.Args[0])
 	flag.Parse()
 	if len(flag.Args()) != 3 {
 		usage(os.Args[0])()
 	}
-	run(flag.Args()[0], flag.Args()[1], flag.Args()[2], *padding, *workers)
+	runner{*padding, *workers, *lines}.run(flag.Args()[0], flag.Args()[1], flag.Args()[2])
 }
 
-func run(xmlName, imgName, outBase string, padding, workers int) {
+type runner struct {
+	padding, workers int
+	lines            bool
+}
+
+func (ru runner) run(xmlName, imgName, outBase string) {
 	// Read the iamge once.
 	in, err := os.Open(imgName)
 	chk(err)
@@ -50,11 +56,10 @@ func run(xmlName, imgName, outBase string, padding, workers int) {
 	var wg sync.WaitGroup
 	wg.Add(workers + 1)
 	out := make(chan region)
-	rs := regions(xmlName)
 	go func() {
 		defer wg.Done()
 		defer close(out)
-		for _, r := range rs {
+		for _, r := range ru.regions(xmlName) {
 			out <- r
 		}
 	}()
@@ -69,18 +74,17 @@ func run(xmlName, imgName, outBase string, padding, workers int) {
 	wg.Wait()
 }
 
-func regions(name string) []region {
+func (ru runner) regions(name string) []region {
 	in, err := os.Open(name)
 	chk(err)
 	defer in.Close()
 	xml, err := xmlquery.Parse(in)
 	chk(err)
-	rs := xmlquery.Find(xml, "//*[local-name()='TextRegion']")
+	rs := ru.findRegions(xml)
 	var ret []region
 	for _, r := range rs {
 		// Read the region's polygon and inner text.
-		ps := xmlquery.Find(r, "//*[local-name()='Point']")
-		polygon, err := newPolygonFromPoints(ps)
+		polygon, err := newPolygon(r)
 		chk(err)
 		textnode := xmlquery.FindOne(r, "//*[local-name()='Unicode']")
 		if textnode == nil { // Skip regions with missing Unicode node.
@@ -96,6 +100,28 @@ func regions(name string) []region {
 		ret = append(ret, reg)
 	}
 	return ret
+}
+
+func (ru runner) findRegions(root *xmlquery.Node) []*xmlquery.Node {
+	if ru.lines {
+		return xmlquery.Find(root, "//*[local-name()='TextLine']")
+	}
+	return xmlquery.Find(root, "//*[local-name()='TextRegion']")
+}
+
+func newPolygon(r *xmlquery.Node) (poly.Polygon, error) {
+	ps := xmlquery.Find(r, "//*[local-name()='Point']")
+	if len(ps) > 0 {
+		return newPolygonFromPoints(ps)
+	}
+	// No Point nodes; use points attribute.
+	for _, attr := range r.Attr {
+		if attr.Name.Local == "points" {
+			return poly.New(attr.Value)
+		}
+	}
+	// We cannot find the polygon for this region.
+	return poly.Polygon{}, fmt.Errorf("cannot find polygon for region")
 }
 
 func newPolygonFromPoints(points []*xmlquery.Node) (poly.Polygon, error) {

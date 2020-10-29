@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"sync"
@@ -54,7 +55,7 @@ func (ru runner) run(xmlName, imgName, outBase string) {
 	img, _, err := image.Decode(in)
 	chk(err)
 	var wg sync.WaitGroup
-	wg.Add(workers + 1)
+	wg.Add(ru.workers + 1)
 	out := make(chan region)
 	go func() {
 		defer wg.Done()
@@ -63,11 +64,11 @@ func (ru runner) run(xmlName, imgName, outBase string) {
 			out <- r
 		}
 	}()
-	for i := 0; i < workers; i++ {
+	for i := 0; i < ru.workers; i++ {
 		go func() {
 			defer wg.Done()
 			for r := range out {
-				r.write(img, outBase, padding)
+				r.write(img, outBase, ru.padding, ru.lines)
 			}
 		}()
 	}
@@ -82,7 +83,7 @@ func (ru runner) regions(name string) []region {
 	chk(err)
 	rs := ru.findRegions(xml)
 	var ret []region
-	for _, r := range rs {
+	for i, r := range rs {
 		// Read the region's polygon and inner text.
 		polygon, err := newPolygon(r)
 		chk(err)
@@ -91,6 +92,7 @@ func (ru runner) regions(name string) []region {
 			continue
 		}
 		reg := region{
+			"Index":       i + 1,
 			"Coordinates": polygon,
 			"Text":        textnode.InnerText(),
 		}
@@ -157,7 +159,7 @@ func chk(err error) {
 
 type region map[string]interface{}
 
-func (r region) write(img image.Image, outBase string, padding int) {
+func (r region) write(img image.Image, outBase string, padding int, lines bool) {
 	// Copy the subregion from the base image.
 	coords := r["Coordinates"].(poly.Polygon)
 	rect := coords.BoundingRectangle()
@@ -175,14 +177,31 @@ func (r region) write(img image.Image, outBase string, padding int) {
 			}
 		}
 	}
+	if lines {
+		r.writeLine(newImg, outBase)
+	} else {
+		r.writeRegion(newImg, outBase)
+	}
+}
 
+func (r region) writeLine(img image.Image, outBase string) {
+	// Write line png and gt.txt to outBase directory.
+	base := filepath.Join(outBase, fmt.Sprintf("%05d", r["Index"].(int)))
+	pout, err := os.Create(base + ".png")
+	chk(err)
+	defer func() { chk(pout.Close()) }()
+	chk(png.Encode(pout, img))
+	chk(ioutil.WriteFile(base+".gt.txt", []byte(r["Text"].(string)+"\n"), 0666))
+}
+
+func (r region) writeRegion(img image.Image, outBase string) {
 	// Write region png, json and gt.txt files.
 	r["Dir"] = fmt.Sprintf("%s_%s", outBase, r["id"].(string))
 	r["Image"] = r["Dir"].(string) + ".png"
 	pout, err := os.Create(r["Image"].(string))
 	chk(err)
 	defer func() { chk(pout.Close()) }()
-	chk(png.Encode(pout, newImg))
+	chk(png.Encode(pout, img))
 	jout, err := os.Create(r["Dir"].(string) + ".json")
 	chk(err)
 	defer func() { chk(jout.Close()) }()

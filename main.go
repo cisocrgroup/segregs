@@ -116,8 +116,12 @@ func newPolygon(r *xmlquery.Node) (poly.Polygon, error) {
 	if len(ps) > 0 {
 		return newPolygonFromPoints(ps)
 	}
+	coords := xmlquery.FindOne(r, "//*[local-name()='Coords']")
+	if coords == nil {
+		return poly.Polygon{}, fmt.Errorf("cannot find polygon for region")
+	}
 	// No Point nodes; use points attribute.
-	for _, attr := range r.Attr {
+	for _, attr := range coords.Attr {
 		if attr.Name.Local == "points" {
 			return poly.New(attr.Value)
 		}

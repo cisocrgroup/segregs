@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 
@@ -30,15 +31,16 @@ func usage(prog string) func() {
 
 func main() {
 	padding := flag.Int("padding", 0, "set padding for region images")
+	workers := flag.Int("workers", runtime.NumCPU(), "set number of worker threads")
 	flag.Usage = usage(os.Args[0])
 	flag.Parse()
 	if len(flag.Args()) != 3 {
 		usage(os.Args[0])()
 	}
-	run(flag.Args()[0], flag.Args()[1], flag.Args()[2], *padding)
+	run(flag.Args()[0], flag.Args()[1], flag.Args()[2], *padding, *workers)
 }
 
-func run(xmlName, imgName, outBase string, padding int) {
+func run(xmlName, imgName, outBase string, padding, workers int) {
 	// Read the iamge once.
 	in, err := os.Open(imgName)
 	chk(err)
@@ -46,13 +48,23 @@ func run(xmlName, imgName, outBase string, padding int) {
 	img, _, err := image.Decode(in)
 	chk(err)
 	var wg sync.WaitGroup
+	wg.Add(workers + 1)
+	out := make(chan region)
 	rs := regions(xmlName)
-	wg.Add(len(rs))
-	for _, r := range rs {
-		go func(r region) {
+	go func() {
+		defer wg.Done()
+		defer close(out)
+		for _, r := range rs {
+			out <- r
+		}
+	}()
+	for i := 0; i < workers; i++ {
+		go func() {
 			defer wg.Done()
-			r.write(img, outBase, padding)
-		}(r)
+			for r := range out {
+				r.write(img, outBase, padding)
+			}
+		}()
 	}
 	wg.Wait()
 }

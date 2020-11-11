@@ -12,7 +12,9 @@ type Polygon []image.Point
 
 // New creates a new polygon from a whitespace separated list of comma
 // separated coordinates e.g. `1,2 3,4 5,6`.  A polygon contains at
-// least 3 points.
+// least 3 points.  If 2 points are given it is assumed, that the
+// region is a rectangle with an upper and lower point.  In this case
+// a polygon with all the 4 points is returned.
 func New(coordinates string) (Polygon, error) {
 	var ret Polygon
 	points := strings.Split(coordinates, " ")
@@ -28,8 +30,16 @@ func New(coordinates string) (Polygon, error) {
 		}
 		ret = append(ret, image.Point{X: x, Y: y})
 	}
-	if len(ret) < 3 {
+	if len(ret) < 2 {
 		return nil, fmt.Errorf("invalid coordinates for polygon: %s", coordinates)
+	}
+	if len(ret) == 2 {
+		return Polygon{
+			ret[0],
+			image.Pt(ret[1].X, ret[0].Y),
+			ret[1],
+			image.Pt(ret[0].X, ret[1].Y),
+		}, nil
 	}
 	return ret, nil
 }

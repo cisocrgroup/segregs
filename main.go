@@ -87,10 +87,11 @@ func (ru runner) regions(name string) []region {
 		// Read the region's polygon and inner text.
 		polygon, err := newPolygon(r)
 		chk(err)
-		textnode := xmlquery.FindOne(r, "//*[local-name()='Unicode']")
-		if textnode == nil { // Skip regions with missing Unicode node.
+		textnodes := xmlquery.Find(r, "/*[local-name()='TextEquiv']/*[local-name()='Unicode']")
+		if len(textnodes) == 0 { // Skip regions with missing Unicode node.
 			continue
 		}
+		textnode := textnodes[len(textnodes)-1]
 		reg := region{
 			"Index":       i + 1,
 			"Coordinates": polygon,

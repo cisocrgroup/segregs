@@ -24,7 +24,9 @@ import (
 
 func usage(prog string) func() {
 	return func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [-padding=n] XML IMG OUT-BASE\nOptions:\n", prog)
+		fmt.Fprintf(os.Stderr, `Usage: %s [Options] XML IMG OUT
+Options:
+`, prog)
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -39,7 +41,12 @@ func main() {
 	if len(flag.Args()) != 3 {
 		usage(os.Args[0])()
 	}
-	runner{*padding, *workers, *lines}.run(flag.Args()[0], flag.Args()[1], flag.Args()[2])
+	r := runner{
+		padding: *padding,
+		workers: *workers,
+		lines:   *lines,
+	}
+	r.run(flag.Args()[0], flag.Args()[1], flag.Args()[2])
 }
 
 type runner struct {

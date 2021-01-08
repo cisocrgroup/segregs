@@ -13,11 +13,19 @@ Segment regions (from
 files) into seperate image files.
 
 ## Usage
-`segregs [-padding=p] XML IMG BASE`
+```
+segregs [Options] XML IMG OUT
+Options:
+  -lines segment line regions with according .gt.txt files
+  -padding int set padding for region images
+  -workers int set number of worker threads (default #cpus)
+```
 
 Segment the the regions from XML and IMG and write the resulting image
-files to BASE\_REGID.png with a padding of p pixels. The resulting json
-file is written to BASE\_REGID.json.
+files to `OUT/REGID.png` with a padding of p pixels. The resulting
+json file is written to `OUT_REGID.json`.  If `-lines` is given, each
+line snippet is written to `OUT/LINENUM.png` and its text is written
+to `OUT/LINENUM.gt.txt` instead.
 
 ## Installation
 To install just type `go get github.com/cisocrgroup/segregs`.

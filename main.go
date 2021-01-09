@@ -33,7 +33,7 @@ Options:
 }
 
 func main() {
-	padding := flag.Int("padding", 0, "set padding for region images")
+	padding := flag.Int("padding", 0, "set padding for region image snippets")
 	workers := flag.Int("workers", runtime.NumCPU(), "set number of worker threads")
 	lines := flag.Bool("lines", false, "segment line regions")
 	flag.Usage = usage(os.Args[0])

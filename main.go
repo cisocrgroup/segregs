@@ -185,7 +185,7 @@ func (r region) write(img image.Image, outBase string, padding int, lines bool) 
 	for x := newImg.Bounds().Min.X; x < newImg.Bounds().Max.X; x++ {
 		for y := newImg.Bounds().Min.Y; y < newImg.Bounds().Max.Y; y++ {
 			if !coords.Inside(image.Pt(x, y)) {
-				newImg.Set(x, y, color.Transparent)
+				newImg.Set(x, y, color.White)
 			}
 		}
 	}

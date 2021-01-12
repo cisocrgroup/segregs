@@ -24,9 +24,7 @@ import (
 
 func usage(prog string) func() {
 	return func() {
-		fmt.Fprintf(os.Stderr, `Usage: %s [Options] XML IMG OUT
-Options:
-`, prog)
+		fmt.Fprintf(os.Stderr, "Usage: %s [Options] XML IMG OUT\nOptions:\n", prog)
 		flag.PrintDefaults()
 		os.Exit(1)
 	}

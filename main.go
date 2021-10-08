@@ -206,18 +206,27 @@ func (r region) writeLine(img image.Image, outBase string) {
 
 func (r region) writeRegion(img image.Image, outBase string) {
 	// Write region png, json and gt.txt files.
-	r["Dir"] = fmt.Sprintf("%s_%s", outBase, r["id"].(string))
-	r["Image"] = r["Dir"].(string) + ".png"
-	pout, err := os.Create(r["Image"].(string))
+	dir := fmt.Sprintf("%s_%s", outBase, r["id"].(string))
+	image := dir + ".png"
+
+	// Write image file.
+	pout, err := os.Create(image)
 	chk(err)
 	defer func() { chk(pout.Close()) }()
 	chk(png.Encode(pout, img))
-	jout, err := os.Create(r["Dir"].(string) + ".json")
+
+	// Write ground-truth text file.
+	gtout := dir + ".gt.txt"
+	chk(ioutil.WriteFile(gtout, []byte(r["Text"].(string)+"\n"), 0666))
+
+	// Write json metadata.
+	jout, err := os.Create(dir + ".json")
 	chk(err)
 	defer func() { chk(jout.Close()) }()
+	r["Dir"] = filepath.Base(dir)
+	r["Image"] = filepath.Base(image)
+	r["GT"] = filepath.Base(gtout)
 	chk(json.NewEncoder(jout).Encode(r))
-	gtout := r["Dir"].(string) + ".gt.txt"
-	chk(ioutil.WriteFile(gtout, []byte(r["Text"].(string)+"\n"), 0666))
 }
 
 func addPadding(rect image.Rectangle, max image.Point, padding int) image.Rectangle {
